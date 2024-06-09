@@ -1,2 +1,2 @@
-# this is a reposetory used for shortcuts 
-# ignore evryting here
+used for file hosting
+ignore this
