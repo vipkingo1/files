@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Poster Slideshow — Embed</title>
+  <style>
+    :root{
+      --width: 100%;
+      --max-width: 960px;
+      --bg: #111;
+      --dot-size: 10px;
+      --transition: 800ms;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;padding:0;background:var(--bg);font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#fff}
+
+    /* Container sized to fit Google Sites embed area */
+    .poster-wrap{width:var(--width);max-width:var(--max-width);margin:0 auto;position:relative;overflow:hidden;border-radius:8px}
+
+    /* Slides */
+    .slides{position:relative;height:0;padding-bottom:56.25% /* 16:9 default ratio */}
+    .slide{position:absolute;inset:0;opacity:0;transform:scale(1.02);transition:opacity var(--transition) ease,transform var(--transition) ease;display:flex;align-items:center;justify-content:center;background:#222}
+    .slide.is-active{opacity:1;transform:scale(1);z-index:2}
+
+    /* Poster image fills and keeps aspect */
+    .slide img{width:100%;height:100%;object-fit:cover;display:block}
+
+    /* Overlay for title/credit if needed */
+    .meta{position:absolute;left:12px;bottom:12px;background:rgba(0,0,0,.45);padding:8px 10px;border-radius:6px;font-size:14px}
+
+    /* Controls */
+    .controls{position:absolute;left:12px;top:12px;display:flex;gap:8px}
+    .btn{background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.06);color:#fff;padding:6px 8px;border-radius:6px;cursor:pointer}
+    .btn:hover{background:rgba(255,255,255,.06)}
+
+    /* Dots */
+    .dots{position:absolute;left:50%;transform:translateX(-50%);bottom:12px;display:flex;gap:8px}
+    .dot{width:var(--dot-size);height:var(--dot-size);border-radius:50%;background:rgba(255,255,255,.25);cursor:pointer;outline:none;border:0}
+    .dot[aria-current="true"]{background:rgba(255,255,255,1);transform:scale(1.15)}
+
+    /* Small screens tweak */
+    @media (max-width:520px){
+      .meta{font-size:12px;padding:6px}
+      .controls{gap:6px}
+    }
+  </style>
+</head>
+<body>
+  <!--
+    Instructions:
+    - Replace the <figure> images' src attributes with your poster image URLs.
+    - Copy the entire file into Google Sites Embed -> "Embed Code".
+    - Options you can change in the script: `intervalMs` (ms between posters), `pauseOnHover` (true/false), `transition` (ms) — see the top of the <script>.
+  -->
+
+  <div class="poster-wrap" id="posterWrap">
+    <div class="slides" id="slides" aria-live="polite">
+
+      <!-- Slide 1 -->
+      <figure class="slide is-active" data-title="Poster 1" data-alt="Poster showing event A">
+        <img src="https://via.placeholder.com/1600x900.png?text=Poster+1" alt="Poster 1 — event A" />
+        <figcaption class="meta">Poster 1 — Event A</figcaption>
+      </figure>
+
+      <!-- Slide 2 -->
+      <figure class="slide" data-title="Poster 2" data-alt="Poster showing event B">
+        <img src="https://via.placeholder.com/1600x900.png?text=Poster+2" alt="Poster 2 — event B" />
+        <figcaption class="meta">Poster 2 — Event B</figcaption>
+      </figure>
+
+      <!-- Slide 3 -->
+      <figure class="slide" data-title="Poster 3" data-alt="Poster showing event C">
+        <img src="https://via.placeholder.com/1600x900.png?text=Poster+3" alt="Poster 3 — event C" />
+        <figcaption class="meta">Poster 3 — Event C</figcaption>
+      </figure>
+
+    </div>
+
+    <div class="controls" aria-hidden="false">
+      <button class="btn" id="prevBtn" title="Previous poster">◀</button>
+      <button class="btn" id="playPauseBtn" title="Pause slideshow">⏸</button>
+      <button class="btn" id="nextBtn" title="Next poster">▶</button>
+    </div>
+
+    <div class="dots" id="dots" role="tablist" aria-label="Poster navigation"></div>
+  </div>
+
+  <script>
+    /* CONFIG: adjust these values if you want different behaviour */
+    const intervalMs = 4500;   // time each poster stays visible (ms)
+    const pauseOnHover = true;  // pause autoplay when pointer is over the posters
+
+    // wire up
+    const slidesEl = document.getElementById('slides');
+    const slideEls = Array.from(slidesEl.querySelectorAll('.slide'));
+    const dotsEl = document.getElementById('dots');
+    const prevBtn = document.getElementById('prevBtn');
+    const nextBtn = document.getElementById('nextBtn');
+    const playPauseBtn = document.getElementById('playPauseBtn');
+
+    let index = 0;
+    let playing = true;
+    let timer = null;
+
+    // create dots
+    slideEls.forEach((s, i) => {
+      const btn = document.createElement('button');
+      btn.className = 'dot';
+      btn.setAttribute('role','tab');
+      btn.setAttribute('aria-selected', i === 0 ? 'true' : 'false');
+      btn.setAttribute('aria-controls', 'slide-' + i);
+      btn.title = s.dataset.title || 'Poster ' + (i+1);
+      if(i === 0) btn.setAttribute('aria-current','true');
+      btn.addEventListener('click', ()=> goTo(i, true));
+      dotsEl.appendChild(btn);
+    });
+
+    function updateUI(){
+      slideEls.forEach((s, i) => s.classList.toggle('is-active', i === index));
+      const dots = Array.from(dotsEl.children);
+      dots.forEach((d, i) => {
+        d.setAttribute('aria-selected', i === index ? 'true' : 'false');
+        if(i === index) d.setAttribute('aria-current','true'); else d.removeAttribute('aria-current');
+      });
+    }
+
+    function goTo(i, manual=false){
+      index = (i + slideEls.length) % slideEls.length;
+      updateUI();
+      if(manual){
+        // if user clicks, restart timer for consistent pacing
+        restartTimer();
+      }
+    }
+
+    function next(manual=false){ goTo(index+1, manual); }
+    function prev(){ goTo(index-1, true); }
+
+    prevBtn.addEventListener('click', ()=>{ prev(); });
+    nextBtn.addEventListener('click', ()=>{ next(true); });
+
+    playPauseBtn.addEventListener('click', ()=>{
+      playing = !playing;
+      playPauseBtn.textContent = playing ? '⏸' : '▶';
+      if(playing) startTimer(); else stopTimer();
+    });
+
+    // autoplay timer
+    function startTimer(){ stopTimer(); timer = setInterval(()=> next(false), intervalMs); }
+    function stopTimer(){ if(timer) { clearInterval(timer); timer = null; } }
+    function restartTimer(){ if(playing) { stopTimer(); startTimer(); } }
+
+    // pause on hover (pointer) for better UX in embeds
+    if(pauseOnHover){
+      const wrap = document.getElementById('posterWrap');
+      wrap.addEventListener('pointerenter', ()=>{ if(playing) stopTimer(); });
+      wrap.addEventListener('pointerleave', ()=>{ if(playing) startTimer(); });
+    }
+
+    // keyboard accessibility: left/right to navigate, space to play/pause
+    document.addEventListener('keydown', (e)=>{
+      if(e.key === 'ArrowLeft') prev();
+      if(e.key === 'ArrowRight') next(true);
+      if(e.key === ' ' || e.key === 'Spacebar'){
+        e.preventDefault();
+        playing = !playing;
+        playPauseBtn.textContent = playing ? '⏸' : '▶';
+        if(playing) startTimer(); else stopTimer();
+      }
+    });
+
+    // start
+    updateUI();
+    startTimer();
+
+    // Make sure images have meaningful alt text (if you programmatically inject posters, set alt accordingly)
+  </script>
+</body>
+</html>
