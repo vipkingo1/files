@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Vertical Poster Slideshow — Embed</title>
+  <style>
+    :root{
+      --bg: #111;
+      --dot-size: 10px;
+      --transition: 800ms;
+    }
+    *{box-sizing:border-box;margin:0;padding:0}
+    html,body{width:100%;height:100%;background:var(--bg);font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#fff}
+
+    /* Fill available space without gaps */
+    .poster-wrap{position:relative;width:100%;height:100%;overflow:hidden;margin:0 auto;border-radius:0}
+
+    /* Vertical ratio but responsive to container */
+    .slides{position:absolute;inset:0}
+    .slide{position:absolute;inset:0;opacity:0;transform:scale(1.02);transition:opacity var(--transition) ease,transform var(--transition) ease;display:flex;align-items:center;justify-content:center;background:#000}
+    .slide.is-active{opacity:1;transform:scale(1);z-index:2}
+
+    .slide img{width:100%;height:100%;object-fit:cover;display:block}
+
+    .meta{position:absolute;left:12px;bottom:12px;background:rgba(0,0,0,.45);padding:8px 10px;border-radius:6px;font-size:14px}
+
+    .controls{position:absolute;left:12px;top:12px;display:flex;gap:8px;z-index:10}
+    .btn{background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.06);color:#fff;padding:6px 8px;border-radius:6px;cursor:pointer}
+    .btn:hover{background:rgba(255,255,255,.06)}
+
+    .dots{position:absolute;left:50%;transform:translateX(-50%);bottom:12px;display:flex;gap:8px;z-index:10}
+    .dot{width:var(--dot-size);height:var(--dot-size);border-radius:50%;background:rgba(255,255,255,.25);cursor:pointer;outline:none;border:0}
+    .dot[aria-current="true"]{background:rgba(255,255,255,1);transform:scale(1.15)}
+  </style>
+</head>
+<body>
+  <div class="poster-wrap" id="posterWrap">
+    <div class="slides" id="slides" aria-live="polite">
+      <figure class="slide is-active" data-title="BTC Poster"><img src="https://raw.githubusercontent.com/vipkingo1/files/main/posters/BTC.jpg" alt="BTC Poster" /></figure>
+      <figure class="slide" data-title="C Poster"><img src="https://raw.githubusercontent.com/vipkingo1/files/main/posters/C.jpg" alt="C Poster" /></figure>
+      <figure class="slide" data-title="CM Poster"><img src="https://raw.githubusercontent.com/vipkingo1/files/main/posters/CM.jpg" alt="CM Poster" /></figure>
+      <figure class="slide" data-title="GC Poster"><img src="https://raw.githubusercontent.com/vipkingo1/files/main/posters/GC.jpg" alt="GC Poster" /></figcaption></figure>
+      <figure class="slide" data-title="NGE Poster"><img src="https://raw.githubusercontent.com/vipkingo1/files/main/posters/NGE.jpg" alt="NGE Poster" /></figcaption></figure>
+      <figure class="slide" data-title="86 Poster"><img src="https://raw.githubusercontent.com/vipkingo1/files/main/posters/86.jpg" alt="86 Poster" /></figcaption></figure>
+    </div>
+    <div class="controls">
+      <button class="btn" id="prevBtn">◀</button>
+      <button class="btn" id="playPauseBtn">⏸</button>
+      <button class="btn" id="nextBtn">▶</button>
+    </div>
+    <div class="dots" id="dots"></div>
+  </div>
+
+  <script>
+    const intervalMs = 4500;
+    const pauseOnHover = true;
+
+    const slidesEl = document.getElementById('slides');
+    const slideEls = Array.from(slidesEl.querySelectorAll('.slide'));
+    const dotsEl = document.getElementById('dots');
+    const prevBtn = document.getElementById('prevBtn');
+    const nextBtn = document.getElementById('nextBtn');
+    const playPauseBtn = document.getElementById('playPauseBtn');
+
+    let index = 0;
+    let playing = true;
+    let timer = null;
+
+    slideEls.forEach((s, i) => {
+      const btn = document.createElement('button');
+      btn.className = 'dot';
+      btn.title = s.dataset.title || 'Poster ' + (i+1);
+      if(i === 0) btn.setAttribute('aria-current','true');
+      btn.addEventListener('click', ()=> goTo(i, true));
+      dotsEl.appendChild(btn);
+    });
+
+    function updateUI(){
+      slideEls.forEach((s, i) => s.classList.toggle('is-active', i === index));
+      Array.from(dotsEl.children).forEach((d, i) => {
+        if(i === index) d.setAttribute('aria-current','true'); else d.removeAttribute('aria-current');
+      });
+    }
+
+    function goTo(i, manual=false){
+      index = (i + slideEls.length) % slideEls.length;
+      updateUI();
+      if(manual) restartTimer();
+    }
+
+    function next(manual=false){ goTo(index+1, manual); }
+    function prev(){ goTo(index-1, true); }
+
+    prevBtn.onclick = prev;
+    nextBtn.onclick = ()=> next(true);
+
+    playPauseBtn.onclick = ()=>{
+      playing = !playing;
+      playPauseBtn.textContent = playing ? '⏸' : '▶';
+      if(playing) startTimer(); else stopTimer();
+    };
+
+    function startTimer(){ stopTimer(); timer = setInterval(()=> next(false), intervalMs); }
+    function stopTimer(){ if(timer){ clearInterval(timer); timer=null; } }
+    function restartTimer(){ if(playing){ stopTimer(); startTimer(); } }
+
+    if(pauseOnHover){
+      const wrap = document.getElementById('posterWrap');
+      wrap.addEventListener('pointerenter', ()=>{ if(playing) stopTimer(); });
+      wrap.addEventListener('pointerleave', ()=>{ if(playing) startTimer(); });
+    }
+
+    document.addEventListener('keydown', (e)=>{
+      if(e.key==='ArrowLeft') prev();
+      if(e.key==='ArrowRight') next(true);
+      if(e.key===' '){ e.preventDefault(); playPauseBtn.onclick(); }
+    });
+
+    updateUI();
+    startTimer();
+  </script>
+</body>
+</html>
